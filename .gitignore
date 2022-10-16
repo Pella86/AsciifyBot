@@ -2,4 +2,5 @@ bot_token/*
 databases/*
 pictures/*
 src/__pycache__/
+src/telegram/__pycache__/
 tests/
