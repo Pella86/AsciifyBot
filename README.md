@@ -1,4 +1,4 @@
-# PellaScreamBot
+# [PlaceHolder]
 This is a small inline telegram bot that allows the user to send a picutre and transform it in ascii art
 
 ## Table of Contents
