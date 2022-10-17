@@ -404,16 +404,15 @@ class Message:
         self.photos = []
         
         if message_json.get("photo"):
-            photos = message_json["photo"]
-            
-            for photo_json in photos:
-                photo_size = PhotoSize(photo_json)
-                self.photos.append(photo_size)
+            self.photos = PhotoSizeArray(message_json["photo"])
         
         # self.entities
         # self.animation
         # self.audio
-        # self.document
+        
+        document = message_json.get("document")
+        self.document = Document(document) if document else None
+        
         # self.photo
         # self.sticker
         # self.video
@@ -582,7 +581,21 @@ width	Integer	Photo width
 height	Integer	Photo height
 file_size	Integer	Optional. File size in bytes'''
 
-
+class PhotoSizeArray:
+    
+    
+    def __init__(self, array_photo_size_json):
+        self.array = []
+        for photo_json in array_photo_size_json:
+            self.array.append(PhotoSize(photo_json))
+            
+            
+    def get_highest_res(self):
+        return max(self.array, key= lambda x : x.file_size)
+    
+    def get_lowsest_res(self):
+        return min(self.array, key= lambda x : x.file_size)
+    
 # =============================================================================
 # File
 # =============================================================================
@@ -607,3 +620,142 @@ file_id	String	Identifier for this file, which can be used to download or reuse 
 file_unique_id	String	Unique identifier for this file, which is supposed to be the same over time and for different bots. Can't be used to download or reuse the file.
 file_size	Integer	Optional. File size in bytes. It can be bigger than 2^31 and some programming languages may have difficulty/silent defects in interpreting it. But it has at most 52 significant bits, so a signed 64-bit integer or double-precision float type are safe for storing this value.
 file_path	String	Optional. File path. Use https://api.telegram.org/file/bot<token>/<file_path> to get the file.'''
+
+
+# =============================================================================
+# Input Media
+# =============================================================================
+
+class InputMedia:
+    
+    def __init__(self, media_json):
+        self.type = media_json["type"]
+        self.media = media_json["media"]
+        self.caption = media_json.get("caption")
+        self.parse_mode = media_json.get("parse_mode")
+        self.caption_entities = media_json.get("caption_entities")
+    
+
+'''
+InputMedia
+This object represents the content of a media message to be sent. It should be one of
+
+InputMediaAnimation
+InputMediaDocument
+InputMediaAudio
+InputMediaPhoto
+InputMediaVideo
+
+InputMediaPhoto
+Represents a photo to be sent.
+
+Field	Type	Description
+type	String	Type of the result, must be photo
+media	String	File to send. Pass a file_id to send a file that exists on the Telegram servers (recommended), pass an HTTP URL for Telegram to get a file from the Internet, or pass “attach://<file_attach_name>” to upload a new one using multipart/form-data under <file_attach_name> name. More information on Sending Files »
+caption	String	Optional. Caption of the photo to be sent, 0-1024 characters after entities parsing
+parse_mode	String	Optional. Mode for parsing entities in the photo caption. See formatting options for more details.
+caption_entities	Array of MessageEntity	Optional. List of special entities that appear in the caption, which can be specified instead of parse_mode
+
+InputMediaVideo
+Represents a video to be sent.
+
+Field	Type	Description
+type	String	Type of the result, must be video
+media	String	File to send. Pass a file_id to send a file that exists on the Telegram servers (recommended), pass an HTTP URL for Telegram to get a file from the Internet, or pass “attach://<file_attach_name>” to upload a new one using multipart/form-data under <file_attach_name> name. More information on Sending Files »
+thumb	InputFile or String	Optional. Thumbnail of the file sent; can be ignored if thumbnail generation for the file is supported server-side. The thumbnail should be in JPEG format and less than 200 kB in size. A thumbnail's width and height should not exceed 320. Ignored if the file is not uploaded using multipart/form-data. Thumbnails can't be reused and can be only uploaded as a new file, so you can pass “attach://<file_attach_name>” if the thumbnail was uploaded using multipart/form-data under <file_attach_name>. More information on Sending Files »
+caption	String	Optional. Caption of the video to be sent, 0-1024 characters after entities parsing
+parse_mode	String	Optional. Mode for parsing entities in the video caption. See formatting options for more details.
+caption_entities	Array of MessageEntity	Optional. List of special entities that appear in the caption, which can be specified instead of parse_mode
+width	Integer	Optional. Video width
+height	Integer	Optional. Video height
+duration	Integer	Optional. Video duration in seconds
+supports_streaming	Boolean	Optional. Pass True if the uploaded video is suitable for streaming
+InputMediaAnimation
+Represents an animation file (GIF or H.264/MPEG-4 AVC video without sound) to be sent.
+
+Field	Type	Description
+type	String	Type of the result, must be animation
+media	String	File to send. Pass a file_id to send a file that exists on the Telegram servers (recommended), pass an HTTP URL for Telegram to get a file from the Internet, or pass “attach://<file_attach_name>” to upload a new one using multipart/form-data under <file_attach_name> name. More information on Sending Files »
+thumb	InputFile or String	Optional. Thumbnail of the file sent; can be ignored if thumbnail generation for the file is supported server-side. The thumbnail should be in JPEG format and less than 200 kB in size. A thumbnail's width and height should not exceed 320. Ignored if the file is not uploaded using multipart/form-data. Thumbnails can't be reused and can be only uploaded as a new file, so you can pass “attach://<file_attach_name>” if the thumbnail was uploaded using multipart/form-data under <file_attach_name>. More information on Sending Files »
+caption	String	Optional. Caption of the animation to be sent, 0-1024 characters after entities parsing
+parse_mode	String	Optional. Mode for parsing entities in the animation caption. See formatting options for more details.
+caption_entities	Array of MessageEntity	Optional. List of special entities that appear in the caption, which can be specified instead of parse_mode
+width	Integer	Optional. Animation width
+height	Integer	Optional. Animation height
+duration	Integer	Optional. Animation duration in seconds
+InputMediaAudio
+Represents an audio file to be treated as music to be sent.
+
+Field	Type	Description
+type	String	Type of the result, must be audio
+media	String	File to send. Pass a file_id to send a file that exists on the Telegram servers (recommended), pass an HTTP URL for Telegram to get a file from the Internet, or pass “attach://<file_attach_name>” to upload a new one using multipart/form-data under <file_attach_name> name. More information on Sending Files »
+thumb	InputFile or String	Optional. Thumbnail of the file sent; can be ignored if thumbnail generation for the file is supported server-side. The thumbnail should be in JPEG format and less than 200 kB in size. A thumbnail's width and height should not exceed 320. Ignored if the file is not uploaded using multipart/form-data. Thumbnails can't be reused and can be only uploaded as a new file, so you can pass “attach://<file_attach_name>” if the thumbnail was uploaded using multipart/form-data under <file_attach_name>. More information on Sending Files »
+caption	String	Optional. Caption of the audio to be sent, 0-1024 characters after entities parsing
+parse_mode	String	Optional. Mode for parsing entities in the audio caption. See formatting options for more details.
+caption_entities	Array of MessageEntity	Optional. List of special entities that appear in the caption, which can be specified instead of parse_mode
+duration	Integer	Optional. Duration of the audio in seconds
+performer	String	Optional. Performer of the audio
+title	String	Optional. Title of the audio
+InputMediaDocument
+Represents a general file to be sent.
+
+Field	Type	Description
+type	String	Type of the result, must be document
+media	String	File to send. Pass a file_id to send a file that exists on the Telegram servers (recommended), pass an HTTP URL for Telegram to get a file from the Internet, or pass “attach://<file_attach_name>” to upload a new one using multipart/form-data under <file_attach_name> name. More information on Sending Files »
+thumb	InputFile or String	Optional. Thumbnail of the file sent; can be ignored if thumbnail generation for the file is supported server-side. The thumbnail should be in JPEG format and less than 200 kB in size. A thumbnail's width and height should not exceed 320. Ignored if the file is not uploaded using multipart/form-data. Thumbnails can't be reused and can be only uploaded as a new file, so you can pass “attach://<file_attach_name>” if the thumbnail was uploaded using multipart/form-data under <file_attach_name>. More information on Sending Files »
+caption	String	Optional. Caption of the document to be sent, 0-1024 characters after entities parsing
+parse_mode	String	Optional. Mode for parsing entities in the document caption. See formatting options for more details.
+caption_entities	Array of MessageEntity	Optional. List of special entities that appear in the caption, which can be specified instead of parse_mode
+disable_content_type_detection	Boolean	Optional. Disables automatic server-side content type detection for files uploaded using multipart/form-data. Always True, if the document is sent as part of an album.
+InputFile
+This object represents the contents of a file to be uploaded. Must be posted using multipart/form-data in the usual way that files are uploaded via the browser.
+
+Sending files
+There are three ways to send files (photos, stickers, audio, media, etc.):
+
+If the file is already stored somewhere on the Telegram servers, you don't need to reupload it: each file object has a file_id field, simply pass this file_id as a parameter instead of uploading. There are no limits for files sent this way.
+Provide Telegram with an HTTP URL for the file to be sent. Telegram will download and send the file. 5 MB max size for photos and 20 MB max for other types of content.
+Post the file using multipart/form-data in the usual way that files are uploaded via the browser. 10 MB max size for photos, 50 MB for other files.
+Sending by file_id
+
+It is not possible to change the file type when resending by file_id. I.e. a video can't be sent as a photo, a photo can't be sent as a document, etc.
+It is not possible to resend thumbnails.
+Resending a photo by file_id will send all of its sizes.
+file_id is unique for each individual bot and can't be transferred from one bot to another.
+file_id uniquely identifies a file, but a file can have different valid file_ids even for the same bot.
+Sending by URL
+
+When sending by URL the target file must have the correct MIME type (e.g., audio/mpeg for sendAudio, etc.).
+In sendDocument, sending by URL will currently only work for GIF, PDF and ZIP files.
+To use sendVoice, the file must have the type audio/ogg and be no more than 1MB in size. 1-20MB voice notes will be sent as files.
+Other configurations may work but we can't guarantee that they will.
+'''
+
+
+# =============================================================================
+# Document
+# =============================================================================
+
+class Document:
+    
+    def __init__(self, document_json):
+        self.file_id = document_json["file_id"]
+        self.file_unique_id = document_json["file_unique_id"]
+        
+        self.thumb = document_json.get("thumb")
+        self.file_name = document_json.get("file_name")
+        self.mime_type = document_json.get("mime_type")
+        self.file_size = document_json.get("file_size")
+
+'''
+Document
+This object represents a general file (as opposed to photos, voice messages and audio files).
+
+Field	Type	Description
+file_id	String	Identifier for this file, which can be used to download or reuse the file
+file_unique_id	String	Unique identifier for this file, which is supposed to be the same over time and for different bots. Can't be used to download or reuse the file.
+thumb	PhotoSize	Optional. Document thumbnail as defined by sender
+file_name	String	Optional. Original filename as defined by sender
+mime_type	String	Optional. MIME type of the file as defined by sender
+file_size	Integer	Optional. File size in bytes. It can be bigger than 2^31 and some programming languages may have difficulty/silent defects in interpreting it. But it has at most 52 significant bits, so a signed 64-bit integer or double-precision float type are safe for storing this value.
+'''

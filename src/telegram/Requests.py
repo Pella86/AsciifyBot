@@ -48,7 +48,7 @@ class Requests:
             del self.requests_stack[i]        
     
     
-    def request(self, reqfunc, url, params):
+    def request(self, reqfunc, url, params, files=None):
 
         self.clean_stack()
         
@@ -59,7 +59,10 @@ class Requests:
             print("waiting...")
             time.sleep(1)
         
-        response = reqfunc(url, params)
+        if files:
+            response = reqfunc(url, params, files=files)
+        else:
+            response = reqfunc(url, params)
         
         if response is None:
             print(params)
@@ -85,8 +88,8 @@ class Requests:
         return response
         
     
-    def post(self, url, params={}):
-        response = self.request(requests.post, url, params)
+    def post(self, url, params={}, files=None):
+        response = self.request(requests.post, url, params, files)
         return response
 
 
@@ -95,6 +98,9 @@ class Requests:
 # =============================================================================
 
 class BaseTelegramRequests:
+    
+    ''' Base class for the requests, manages the token'''
+    
     request = Requests()
     
     def __init__(self):
@@ -123,97 +129,228 @@ class BaseTelegramRequests:
 # Get File
 # =============================================================================
 
+class PhotoCache:
+    
+    def __init__(self, photo_folder, database_path):
+        self.database_path = pathlib.Path(database_path)
+        
+        self.photo_folder = pathlib.Path(photo_folder)
+        
+        
+        self.database = {}
+        
+        
+        
+        if not self.photo_folder.is_dir():
+            print("creating photo folder...")
+            os.mkdir(self.photo_folder)        
+
+
+        if self.database_path.is_file():
+            print("loading photo database from file...")
+            with open(self.database_path, "rb") as f:
+                self.database = pickle.load(f)
+                
+    def __getitem__(self, file_id):
+        return self.database[file_id]
+    
+    def __setitem__(self, file_id, filename):
+        self.database[file_id] = filename
+        
+    def save(self):
+        with open(self.database_path, "wb") as f:
+            pickle.dump(self.database, f)
+        
 class GetFile(BaseTelegramRequests):
+    
+    ''' GetFile Request: contains a cache saved in ./pictures
+    the cache is based on the unique id of the picture'''
     
     def __init__(self):
         super().__init__()
         
         self.api_file_url = "https://api.telegram.org/file/bot" + self.token + "/"          
-    
-        self.foto_folder = pathlib.Path("./pictures")
         
-        if not self.foto_folder.is_dir():
-            print("creating photo folder...")
-            os.mkdir(self.foto_folder)
-            
-        self.id_filename_db_filename = pathlib.Path("./pictures/database.pkl")
+        self.id_filename_db = PhotoCache("./download_pictures", "./download_pictures/database.pkl")
         
-        self.id_filename = {}
         
-        if self.id_filename_db_filename.is_file():
-            print("loading photo database from file...")
-            with open(self.id_filename_db_filename, "rb") as f:
-                self.id_filename = pickle.load(f)
-    
     def get_image_filename(self, file_id):
+        ''' this function will return the filename in the cache if present
+        if not will create a new picture'''
         
-        if file_id in self.id_filename:
-            return self.id_filename[file_id]
-        else:
+        try:
+            return self.id_filename_db[file_id]
+        except KeyError:
             return self.get_file(file_id)
-    
+
     def get_file(self, file_id):
+        ''' this function will request a file from telegram and download it
+        '''
         
+        # first request to see if the file exist
         api_url = self.api_url + "getFile"
         params = {"file_id" : file_id}
         
         resp = self.request.get(api_url, params)
         
-        if resp:
-            print("getFile response not None")
-            print(resp)
+        # the response should return a File object which contains
+        # information on the file
+        file = tg_obj.File(resp.json()["result"])
+        
+        if file.file_path:
+            # construct the file request
             
-            if resp.status_code == 200:
-                print("getFile response 200")
-                
-                file = tg_obj.File(resp.json()["result"])
-                
-                if file.file_path:
-                    print("file path given:", file.file_path)
-                    print("file size:", file.file_size)
-                    
-                    url = self.api_file_url + file.file_path
-                    
-                    # get the filename from the file path
-                    # store files and ids in a folder
-                    
-                    given_filename = pathlib.Path(pathlib.Path(file.file_path).name)
-                    
-                    filename = self.foto_folder / given_filename
-                    
-                    print("file url:", url)
-                    resp_file = self.request.get(url)
-                    
-                    print(resp_file)
-                    if resp_file:
-                        print("file from url")
-                        if resp_file.status_code == 200:
-                            print("file size:", len(resp_file.content))
-                            if file.file_size == len(resp_file.content):
-                                print("writing file")
-                                
-                                self.id_filename[file.file_id] = filename
-                                
-                                print("updated photo database")
-                                with open(self.id_filename_db_filename, "wb") as f:
-                                    pickle.dump(self.id_filename, f)
-                                
-                                with open(filename, "wb") as f:
-                                    f.write(resp_file.content)
-                                    
-                                return self.id_filename[file_id]
+            url = self.api_file_url + file.file_path
+            resp_file = self.request.get(url)
+            
+            # constructs the filename from the file path
+            # store files and ids in a folder
+            given_filename = pathlib.Path(pathlib.Path(file.file_path).name)
+            filename = self.foto_folder / given_filename
 
-                        else:
-                            print("ERROR: download file request failed")
-                            print(resp.status_code)
-                            print(resp.json())
-                    
+            if file.file_size == len(resp_file.content):
+                
+                # store in the database the file
+                self.id_filename_id[file.file_id] = filename
+                
+                # updates the database
+                self.id_filename_db.save()
+                
+                # writes the file to the pc
+                with open(filename, "wb") as f:
+                    f.write(resp_file.content)
+                
+                # returns the local location of the file
+                return self.id_filename[file_id]
             else:
-                print("Error: get_file request failed")
-                print(resp.status_code)
-                print(resp.json())        
+                raise TelegramRequestError("GetFile: get_file: File size different than the one stated by telegram")
+
+        else:
+            raise TelegramRequestError("GetFile: get_file: no file path given")
 
 
+class SendFile(BaseTelegramRequests):
+    
+    def __init__(self):
+        super().__init__()
+        
+        self.uploaded_files_db = PhotoCache("./databases", "./databases/uploaded_files.pkl")
+    
+    
+    def sendFile(self, url, params, filename, doc_type):
+        
+        try:
+            file_id = self.uploaded_files_db[filename]
+            
+            params[doc_type] = file_id
+            
+            self.request.post(url, params)
+        
+        except KeyError:
+            with open(filename, "rb") as f:
+                
+                files = {}
+                files[doc_type] = f
+                
+                resp = self.request.post(url, params, files=files)
+                
+                message = tg_obj.Message(resp.json()["result"])
+                
+                if doc_type == "photo":
+                    photo = message.photos.get_highest_res()
+                    
+                    file_id = photo.file_id   
+                
+                elif doc_type == "document":
+
+                    document = message.document
+                    file_id = document.file_id
+                
+                else:
+                    print("file type not supported")
+                    
+                    raise Exception("Send File: file type not supported")
+                
+                self.uploaded_files_db[filename] = file_id
+                self.uploaded_files_db.save()                
+        
+        
+    
+    def sendDocument(self, chat_id, filename, caption = "", parse_mode = "HTML"):
+        url = self.api_url + "sendDocument"
+        
+        params ={"chat_id" : chat_id,
+                 "caption" : caption,
+                 "parse_mode" : parse_mode
+                 }
+        
+        
+        self.sendFile(url, params, filename, "document")
+        
+    
+    def sendPhoto(self, chat_id, filename, caption = "", parse_mode = "HTML"):
+        url = self.api_url + "sendPhoto"
+        
+        params ={"chat_id" : chat_id,
+                 "caption" : caption,
+                 "parse_mode" : parse_mode
+                 }
+        
+        
+        self.sendFile(url, params, filename, "photo")        
+        
+        
+        
+        
+        
+# class SendPhoto(BaseTelegramRequests):
+    
+#     def __init__(self):
+#         super().__init__()
+        
+#         self.upload_photo_db = PhotoCache("./upload_pictures", "./upload_pictures/database.pkl")
+        
+#         self.send_photo_api = self.api_url + "sendPhoto"
+        
+#     def send_photo(self, chat_id, filename, caption = "", parse_mode = "HTML"):
+#         params ={"chat_id" : chat_id,
+#                  "caption" : caption,
+#                  "parse_mode" : parse_mode
+#                  }
+        
+        
+#         try:
+#             file_id = self.upload_photo_db[filename]
+            
+#             params["photo"] = file_id
+            
+#             self.request.post(self.send_photo_api, params)
+            
+            
+#         except KeyError:
+            
+#             with open(filename, "rb") as f:
+                
+#                 files = {}
+#                 files["photo"] = f
+#                 resp = self.request.post(self.send_photo_api, params, files=files)
+                
+                
+#                 message = tg_obj.Message(resp.json()["result"])
+                
+#                 photo = message.photos.get_highest_res()
+                
+#                 file_id = photo.file_id
+                
+#                 self.upload_photo_db[filename] = file_id
+#                 self.upload_photo_db.save()
+                
+                
+                
+                
+            
+            
+            
 # =============================================================================
 # Telegram requests
 # =============================================================================
@@ -334,21 +471,4 @@ class TelegramRequests(BaseTelegramRequests):
 
 tg_requests = TelegramRequests()
 tg_get_file = GetFile()
-
-
-
-'''
-answerCallbackQuery
-Use this method to send answers to callback queries sent from inline keyboards. The answer will be displayed to the user as a notification at the top of the chat screen or as an alert. On success, True is returned.
-
-Alternatively, the user can be redirected to the specified Game URL. For this option to work, you must first create a game for your bot via @BotFather and accept the terms. Otherwise, you may use links like t.me/your_bot?start=XXXX that open your bot with a parameter.
-
-Parameter	Type	Required	Description
-callback_query_id	String	Yes	Unique identifier for the query to be answered
-text	String	Optional	Text of the notification. If not specified, nothing will be shown to the user, 0-200 characters
-show_alert	Boolean	Optional	If True, an alert will be shown by the client instead of a notification at the top of the chat screen. Defaults to false.
-url	String	Optional	URL that will be opened by the user's client. If you have created a Game and accepted the conditions via @BotFather, specify the URL that opens your game - note that this will only work if the query comes from a callback_game button.
-
-Otherwise, you may use links like t.me/your_bot?start=XXXX that open your bot with a parameter.
-cache_time	Integer	Optional	The maximum amount of time in seconds that the result of the callback query may be cached client-side. Telegram apps will support caching starting in version 3.14. Defaults to 0.
-'''
+tg_send_file = SendFile()

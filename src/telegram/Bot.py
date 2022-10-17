@@ -4,7 +4,7 @@ Created on Thu Aug 25 15:32:34 2022
 
 @author: maurop
 """
-from src.telegram.Requests import tg_requests, tg_get_file
+from src.telegram.Requests import tg_requests, tg_get_file, tg_send_file
 
 import src.telegram.TelegramObjects as tg_obj
 
@@ -30,6 +30,8 @@ class Bot:
         print("Bot:", self.info)
         
         self.can_ban = src.telegram.MemberCache.CanBanMember()
+        
+        
 
     def sendMessage(self, chat_id, text, parse_mode="HTML"):
         '''Send a general text message '''
@@ -97,9 +99,6 @@ class Bot:
             print(admin_user, "doesnt have the permission to ban")
             return False
         
-    # def get_file(self, file_id):
-    #     tg_get_file.get_file(file_id)
-        
     def get_image_filename(self, file_id):
         return tg_get_file.get_image_filename(file_id)
         
@@ -124,3 +123,11 @@ class Bot:
                     print(resp.json())
         else:          
             self.sendMessage(group_id, "you dont have the permissions to ban")
+            
+    
+    def sendPhoto(self, chat_id, filename):
+        return tg_send_file.sendPhoto(chat_id, filename)
+    
+    def sendDocument(self, chat_id, filename):
+        return tg_send_file.sendDocument(chat_id, filename)
+        
