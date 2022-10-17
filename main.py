@@ -12,6 +12,7 @@ Created on Wed Aug 10 09:57:19 2022
 import json
 import time
 import traceback
+import hashlib
 
 import src.Asciify
 
@@ -48,6 +49,8 @@ class AsciifyBot(src.telegram.Bot.Bot):
                                       "")
         
         self.sizes_db = src.telegram.Updater.Database("./databases/size_database.pkl")
+        
+        
         
     
     def start_message(self, chat_id):
@@ -144,16 +147,26 @@ class AsciifyBot(src.telegram.Bot.Bot):
                     size = self.get_size(message.user.id)
      
                     asciify = src.Asciify.Asciify(image_filename, size)
-
-                    text = "<code>" + asciify.asciify() + "</code>"
                     
-                    print(text)
+                    ascii_text = asciify.asciify()
+
+                    text = "<code>" + ascii_text + "</code>"
                     
                     if len(text) <= 4096:
                         self.sendMessage(message.chat.id, text)
                     else:
-                        self.sendMessage(message.chat.id, "Output text too long, try reducing the size")
+                        self.sendMessage(message.chat.id, "Output text too long for a telegram message, try reducing the size")
                     
+                    # send the document
+                    ids = file_id + "_" + f"{size[0]}x{size[1]}" + "_" + str(message.user.id)
+                    unique_name = hashlib.md5(ids.encode()).hexdigest()
+                    
+                    filename ="./text_files/text_" + unique_name + ".txt"
+                    with open(filename, "w") as f:
+                        f.write(ascii_text)
+                    
+                    self.sendDocument(message.chat.id, filename)
+                
                 else:
                     self.sendMessage(message.chat.id, 
                                     self.help_message)
@@ -195,21 +208,21 @@ if __name__ == "__main__":
         new_updates = updater.getUpdates()
 
         try:
-            # bot.handle_updates(new_updates)$
+            bot.handle_updates(new_updates)
             
-            for update in new_updates:
-                if "message" in update:
-                    message = tg_obj.Message(update["message"])
+            # for update in new_updates:
+            #     if "message" in update:
+            #         message = tg_obj.Message(update["message"])
                     
-                    if message.text == "send photo":
-                        print("sending photo")            
-                        filename = "./example_pictures/example_picture.jpg"
-                        bot.sendPhoto(message.chat.id, filename)
+            #         if message.text == "send photo":
+            #             print("sending photo")            
+            #             filename = "./example_pictures/example_picture.jpg"
+            #             bot.sendPhoto(message.chat.id, filename)
                     
-                    if message.text == "send text":
-                        print("sending text")            
-                        filename = "./example_pictures/test_document.txt"
-                        bot.sendDocument(message.chat.id, filename)                        
+            #         if message.text == "send text":
+            #             print("sending text")            
+            #             filename = "./example_pictures/test_document.txt"
+            #             bot.sendDocument(message.chat.id, filename)                        
       
         except KeyError as e:
             print("key:", e)

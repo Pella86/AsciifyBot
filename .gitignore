@@ -4,3 +4,4 @@ src/__pycache__/
 src/telegram/__pycache__/
 tests/
 download_pictures/
+text_files/

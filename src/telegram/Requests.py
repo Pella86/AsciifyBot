@@ -206,12 +206,12 @@ class GetFile(BaseTelegramRequests):
             # constructs the filename from the file path
             # store files and ids in a folder
             given_filename = pathlib.Path(pathlib.Path(file.file_path).name)
-            filename = self.foto_folder / given_filename
+            filename = self.id_filename_db.photo_folder / given_filename
 
             if file.file_size == len(resp_file.content):
                 
                 # store in the database the file
-                self.id_filename_id[file.file_id] = filename
+                self.id_filename_db[file.file_id] = filename
                 
                 # updates the database
                 self.id_filename_db.save()
@@ -221,7 +221,7 @@ class GetFile(BaseTelegramRequests):
                     f.write(resp_file.content)
                 
                 # returns the local location of the file
-                return self.id_filename[file_id]
+                return self.id_filename_db[file_id]
             else:
                 raise TelegramRequestError("GetFile: get_file: File size different than the one stated by telegram")
 
@@ -267,8 +267,6 @@ class SendFile(BaseTelegramRequests):
                     file_id = document.file_id
                 
                 else:
-                    print("file type not supported")
-                    
                     raise Exception("Send File: file type not supported")
                 
                 self.uploaded_files_db[filename] = file_id
@@ -299,56 +297,6 @@ class SendFile(BaseTelegramRequests):
         
         self.sendFile(url, params, filename, "photo")        
         
-        
-        
-        
-        
-# class SendPhoto(BaseTelegramRequests):
-    
-#     def __init__(self):
-#         super().__init__()
-        
-#         self.upload_photo_db = PhotoCache("./upload_pictures", "./upload_pictures/database.pkl")
-        
-#         self.send_photo_api = self.api_url + "sendPhoto"
-        
-#     def send_photo(self, chat_id, filename, caption = "", parse_mode = "HTML"):
-#         params ={"chat_id" : chat_id,
-#                  "caption" : caption,
-#                  "parse_mode" : parse_mode
-#                  }
-        
-        
-#         try:
-#             file_id = self.upload_photo_db[filename]
-            
-#             params["photo"] = file_id
-            
-#             self.request.post(self.send_photo_api, params)
-            
-            
-#         except KeyError:
-            
-#             with open(filename, "rb") as f:
-                
-#                 files = {}
-#                 files["photo"] = f
-#                 resp = self.request.post(self.send_photo_api, params, files=files)
-                
-                
-#                 message = tg_obj.Message(resp.json()["result"])
-                
-#                 photo = message.photos.get_highest_res()
-                
-#                 file_id = photo.file_id
-                
-#                 self.upload_photo_db[filename] = file_id
-#                 self.upload_photo_db.save()
-                
-                
-                
-                
-            
             
             
 # =============================================================================
