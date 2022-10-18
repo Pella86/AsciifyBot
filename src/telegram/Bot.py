@@ -20,7 +20,6 @@ class Bot:
     
     telegram_api = tg_requests
     
-
     def __init__(self):
         '''Initialize the bot and use get me as a logging tool'''
         r = self.telegram_api.getMe()

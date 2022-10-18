@@ -54,17 +54,18 @@ class AsciifyBot(src.telegram.Bot.Bot):
         
     
     def start_message(self, chat_id):
+        # message sent when the command start is given
+        
         text = "<b>Welcome to the Asciify bot</b>\n"
         text += self.help_message
         
         self.sendMessage(chat_id, text)
         
-        self.sendMessage(chat_id, "Example (to be implemented)")
-        
-        # implement it later
+        self.sendPhoto(chat_id, "./example_pictures/Example_picture.png")
+
 
     def change_size(self, message):
-        print("change_size")
+        print("User requested change_size")
         
         if message.text == "/size":
             size = self.get_size(message.user.id)
@@ -94,7 +95,6 @@ class AsciifyBot(src.telegram.Bot.Bot):
                     self.sizes_db.data.append( (user_id, sizes) )  
                     self.sizes_db.save()
                         
-                
                 self.sendMessage(message.chat.id, f"Size set to {sizes[0]}x{sizes[1]}")
             
             except IndexError:
@@ -123,33 +123,40 @@ class AsciifyBot(src.telegram.Bot.Bot):
             
              # manages callback queries
             
-            if "callback_query" in update:
-                print("handle_updates: Received callback query...")
-                pass
+            # if "callback_query" in update:
+            #     print("handle_updates: Received callback query...")
+            #     pass
             
             if "message" in update:
                 message = tg_obj.Message(update["message"])
                 
-                if message.text:
+                if message.text and message.chat.type == "private":
                     if self.bot_commands["/size"] == message.text:
                         self.bot_commands["/size"].fire([message])
+                    
                     elif self.bot_commands["/start"] == message.text:
+                        print("User started bot")
                         self.bot_commands["/start"].fire([message.chat.id])
+                    
                     else:
                         self.sendMessage(message.chat.id, self.help_message)
                
                 elif message.photos:
+                    print("User requested ascii art")
                     # pick the smallest photo
                     file_id = message.photos.get_lowsest_res().file_id
                     
+                    # get the picture
                     image_filename = self.get_image_filename(file_id)
                     
+                    # get user preferred size
                     size = self.get_size(message.user.id)
-     
-                    asciify = src.Asciify.Asciify(image_filename, size)
                     
+                    # do the magic
+                    asciify = src.Asciify.Asciify(image_filename, size)
                     ascii_text = asciify.asciify()
-
+                    
+                    # send the text message
                     text = "<code>" + ascii_text + "</code>"
                     
                     if len(text) <= 4096:
@@ -200,8 +207,7 @@ if __name__ == "__main__":
     # bot
     bot = AsciifyBot()
 
-    
-
+    # updates cycle
     while True:
         time.sleep(0.1)
         
@@ -210,20 +216,7 @@ if __name__ == "__main__":
         try:
             bot.handle_updates(new_updates)
             
-            # for update in new_updates:
-            #     if "message" in update:
-            #         message = tg_obj.Message(update["message"])
-                    
-            #         if message.text == "send photo":
-            #             print("sending photo")            
-            #             filename = "./example_pictures/example_picture.jpg"
-            #             bot.sendPhoto(message.chat.id, filename)
-                    
-            #         if message.text == "send text":
-            #             print("sending text")            
-            #             filename = "./example_pictures/test_document.txt"
-            #             bot.sendDocument(message.chat.id, filename)                        
-      
+
         except KeyError as e:
             print("key:", e)
             print(traceback.format_exc())

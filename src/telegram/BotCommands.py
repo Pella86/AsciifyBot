@@ -11,6 +11,10 @@ Created on Sun Oct 16 15:32:03 2022
 
 class BotCommand:
     
+    ''' This class is a bot command, the class contains the bot so to acces the
+    the username info of the bot, the command is associated with a function,
+    and a help message'''
+    
     def __init__(self, bot, command, function=None, help_message=""):
         self.bot = bot
         self.command = command
@@ -41,7 +45,13 @@ class BotCommand:
         
         return False
 
+# =============================================================================
+# Bot Command List
+# =============================================================================
+
 class BotCommandList:
+    
+    ''' This class manages a set of commands'''
     
     def __init__(self):
         self.commands = {}

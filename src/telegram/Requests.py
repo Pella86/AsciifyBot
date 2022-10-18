@@ -31,8 +31,6 @@ class Requests:
     def __init__(self):
         # stores the time when a request was done
         self.requests_stack = []
-        
-        print("Requests instance number", id(self))
  
     
     def clean_stack(self):
@@ -104,8 +102,6 @@ class BaseTelegramRequests:
     request = Requests()
     
     def __init__(self):
-        
-        
         self.token = self.read_token()
         
         self.api_url = "https://api.telegram.org/bot" + self.token + "/"   
@@ -126,26 +122,28 @@ class BaseTelegramRequests:
         return token
     
 # =============================================================================
-# Get File
+# Get/Send File
 # =============================================================================
 
 class PhotoCache:
     
+    ''' This class manages a file cache '''
+    
     def __init__(self, photo_folder, database_path):
         self.database_path = pathlib.Path(database_path)
         
+        # folder where the files will be stored
         self.photo_folder = pathlib.Path(photo_folder)
         
-        
+        # id filename 
         self.database = {}
         
-        
-        
+        # create the folder
         if not self.photo_folder.is_dir():
             print("creating photo folder...")
             os.mkdir(self.photo_folder)        
 
-
+        # load the database file if present
         if self.database_path.is_file():
             print("loading photo database from file...")
             with open(self.database_path, "rb") as f:
@@ -231,6 +229,9 @@ class GetFile(BaseTelegramRequests):
 
 class SendFile(BaseTelegramRequests):
     
+    '''This class manages sending a file from disk, if the file was already sent
+    uses the telgram returned file_id'''
+    
     def __init__(self):
         super().__init__()
         
@@ -238,7 +239,8 @@ class SendFile(BaseTelegramRequests):
     
     
     def sendFile(self, url, params, filename, doc_type):
-        
+        # try to see if filename > file_id exist which means the picture was
+        # already sent
         try:
             file_id = self.uploaded_files_db[filename]
             
@@ -246,6 +248,8 @@ class SendFile(BaseTelegramRequests):
             
             self.request.post(url, params)
         
+        # if the file was never sent then it means there is no id
+        # so it will be loaded from disk
         except KeyError:
             with open(filename, "rb") as f:
                 
@@ -254,15 +258,17 @@ class SendFile(BaseTelegramRequests):
                 
                 resp = self.request.post(url, params, files=files)
                 
+                # the sendDocument or sendPhoto method respond with a message
+                # containint the file ids
                 message = tg_obj.Message(resp.json()["result"])
                 
+                # get the file_id from the telegram response
                 if doc_type == "photo":
+                    # there might be a problem since photos are always in multiples
                     photo = message.photos.get_highest_res()
-                    
                     file_id = photo.file_id   
                 
                 elif doc_type == "document":
-
                     document = message.document
                     file_id = document.file_id
                 
@@ -417,6 +423,9 @@ class TelegramRequests(BaseTelegramRequests):
         return self.request.post(api_url, params)          
         
 
+
+# these are instanciated here to make sure requests is instanciated once
+# yet they could be wrapped in a class and be class variables
 tg_requests = TelegramRequests()
 tg_get_file = GetFile()
 tg_send_file = SendFile()
